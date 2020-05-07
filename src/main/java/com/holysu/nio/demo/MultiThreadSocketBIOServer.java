@@ -25,23 +25,40 @@ public class MultiThreadSocketBIOServer {
             // 对于每个连接，处理线程只能在网络io读取后才能进入处理逻辑
             // 而且如果连接上来多客户端越来越多，服务端的线程数就会不断暴涨，
             // server端会被大量线程耗尽资源，这个时候cpu将疲于应对上下文切换 线程将获取不到时间片进行处理
-            new Thread(() -> {
-                try {
-                    InputStream inputStream = socket.getInputStream();
-                    while (true) {
-                        DataInputStream dataInputStream = new DataInputStream(inputStream);
-                        int len = dataInputStream.readInt();
-                        byte[] data = new byte[len];
-                        dataInputStream.read(data);
-                        System.out.println(
-                                Thread.currentThread().getName()
-                                        + " read from client-" + socket.getPort() + ", "
-                                        + " content: " + new String(data, "utf-8"));
-                    }
-                } catch (IOException e) {
-                    e.printStackTrace();
+            new WorkerThread(socket).start();
+        }
+    }
+
+    public static class WorkerThread extends Thread {
+        private Socket socket;
+
+        public WorkerThread(Socket socket) {
+            this.socket = socket;
+        }
+
+        @Override
+        public void run() {
+            try {
+                InputStream inputStream = socket.getInputStream();
+                DataInputStream dataInputStream = new DataInputStream(inputStream);
+                while (true) {
+                    int len = dataInputStream.readInt();
+                    byte[] data = new byte[len];
+                    dataInputStream.read(data);
+                    System.out.println(
+                            Thread.currentThread().getName()
+                                    + " read from client-" + socket.getPort() + ", "
+                                    + " content: " + new String(data, "utf-8"));
                 }
-            }).start();
+            } catch (IOException e) {
+                try {
+                    // 关闭socket会把相应的输入输出流也关闭
+                    socket.close();
+                } catch (IOException ioException) {
+                    ioException.printStackTrace();
+                }
+                e.printStackTrace();
+            }
         }
     }
 }
