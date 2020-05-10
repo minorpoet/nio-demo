@@ -1,4 +1,4 @@
-package com.holysu.nio.demo;
+package com.holysu.nio.demo.niomultiplexing;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -6,16 +6,14 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
-import java.util.Date;
 import java.util.Iterator;
 
 /**
- * nio 网络通信客户端
+ * nio 客户端
  */
 public class NioClient {
-
     public static void main(String[] args) {
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 1; i++) {
             new Worker().start();
         }
     }
@@ -43,36 +41,30 @@ public class NioClient {
                         keysIterator.remove(); //！！！ 很重要的一步
                         if (key.isConnectable()) { // server 端返回一个 connectable 的消息
                             channel = (SocketChannel) key.channel();
-                            // 如果连接还在建立过程中
-                            if (channel.isConnectionPending()) {
-                                // 判断 channel 的连接是否已经建立完成了，如果未完成，则等待；保证连接建立完再走后门的逻辑
-                                while (!channel.finishConnect()) {
-                                    Thread.sleep(100);
-                                }
-                            }
+                            // 阻塞到tcp连接建立完毕
+                            channel.finishConnect();
 
-
-                            System.out.println(new Date() + "[" + Thread.currentThread().getName() +"] 连接建立后首次发送请求......");
+                            System.out.println( Thread.currentThread().getName() + " 连接建立后首次发送请求......");
                             ByteBuffer buffer = ByteBuffer.allocate(1024);
                             buffer.put("你好".getBytes());
                             buffer.flip();
                             channel.write(buffer);
 
-//                            channel.register(selector, SelectionKey.OP_READ); // ！！！ 每次都要重新监听事件才可以
+                            channel.register(selector, SelectionKey.OP_READ); // ！！！ 每次都要重新监听事件才可以
                         } else if (key.isReadable()) { // isReadable() 表示收到服务端发来的信息了，可以读取了
+                            System.out.println("收到服务端的响应...");
                             channel = (SocketChannel) key.channel();
                             ByteBuffer buffer = ByteBuffer.allocate(1024);
                             int len = channel.read(buffer); // 从 channel中读取 server端发来的数据
-                            System.out.println(new Date() + "[" + Thread.currentThread().getName() + "]收到服务端的响应......" );
                             if (len > 0) {
-                                System.out.println(new Date() + "[" + Thread.currentThread().getName() + "] 收到响应: "
+                                buffer.flip();
+                                System.out.println(Thread.currentThread().getName() + ": 收到响应: "
                                         + new String(buffer.array(), 0, len));
                                 Thread.sleep(1000);
                                 channel.register(selector, SelectionKey.OP_WRITE);
                             }
                         } else if (key.isWritable()) {
-
-                            System.out.println(new Date() + "[" + Thread.currentThread().getName() + "]准备再次发送请求...");
+                            System.out.println(Thread.currentThread().getName() + ": 准备再次发送请求...");
                             ByteBuffer buffer = ByteBuffer.allocate(1024);
                             buffer.put("hello yayyaya".getBytes());
                             buffer.flip();

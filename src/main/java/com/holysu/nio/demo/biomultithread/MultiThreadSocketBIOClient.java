@@ -1,4 +1,4 @@
-package com.holysu.nio.demo;
+package com.holysu.nio.demo.biomultithread;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
